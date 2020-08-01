@@ -1,39 +1,295 @@
 # 参考:
 # https://blog.csdn.net/jia666666/article/details/81583129
-# https://zhuanlan.zhihu.com/p/32134728
-# https://www.cnblogs.com/ansang/p/7895075.html
-# https://www.cnblogs.com/cxys85/p/10754309.html
-# https://blog.csdn.net/paul200345/article/details/100826879
-# https://blog.csdn.net/jia666666/article/details/81583129
+# https://blog.csdn.net/qq_40523737/article/details/81107089
+# https://zhidao.baidu.com/question/2074168509029592828.html
+# https://bbs.csdn.net/topics/392028741?page=1
+# https://blog.csdn.net/jacke121/article/details/89338898
+# https://blog.csdn.net/MAOZEXIJR/article/details/83111344
+# https://www.dazhuanlan.com/2020/03/13/5e6ac5e82cf72/
+# https://blog.csdn.net/rosefun96/article/details/79471674
 # https://blog.csdn.net/rosefun96/article/details/79477974
-# https://zhuanlan.zhihu.com/p/32134728
+# https://blog.csdn.net/wowocpp/article/details/105221265
+# https://blog.csdn.net/caomin1hao/article/details/80388760
+# https://www.cnblogs.com/archisama/p/5444032.html
+# https://blog.csdn.net/weixin_45961774/article/details/106008803
+# https://blog.csdn.net/dengnihuilaiwpl/article/details/90321249
+# https://blog.csdn.net/Victor_zero/article/details/81268465?utm_source=blogxgwz9
 # https://www.cnblogs.com/ansang/p/7895075.html
 # https://www.cnblogs.com/cxys85/p/10754309.html
 # https://blog.csdn.net/paul200345/article/details/100826879
+# https://www.cnblogs.com/daisyyang/p/11138202.html
+# https://blog.csdn.net/uuihoo/article/details/79496440
 import os
 import sys
 
-from PyQt5.QtCore import pyqtSignal
+from PyQt5 import QtCore
+from PyQt5.QtCore import pyqtSignal, Qt
 from PyQt5.QtWidgets import (QApplication, QDialog, QGridLayout, QLabel, QPushButton, QTextEdit, QMessageBox, QWidget,
-                             QTableWidget, QTableWidgetItem)
-from PyQt5.QtGui import QPixmap, QFont
+                             QTableWidget, QTableWidgetItem, QMenu, QInputDialog, QLineEdit)
+from PyQt5.QtGui import QPixmap, QFont, QIcon, QCursor
 
 # https://blog.csdn.net/jia666666/article/details/81583129
 from PyQt5.uic.properties import QtGui
 
 
-class Form(QWidget):
+# https://blog.csdn.net/qq_40523737/article/details/81107089
+def singleton(cls):
+    _instance = {}
+
+    def inner():
+        if cls not in _instance:
+            _instance[cls] = cls()
+            print('not in')
+        return _instance[cls]
+
+    return inner
+
+
+@singleton
+class DataBase():
+    info = {}
     problems = []
+    lst_dic_exists = []
+    dict_ans = {}
+    cnt_ans_img = 0
+
+    def __init__(self):
+        print('init data base')
+
+    def get_num_problems(self, path: str):
+        return len(self.info[path])
+
+    def get_dir_nums(self):
+        return len(self.info) - 2  # 减去cnt_ans_img, problems
+
+
+class Direction(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle('dir')
+        self.tbl_dir = TblToListItems()
+
+        self.setFixedWidth(300)
+        self.setFixedHeight(800)
+        self.tbl_dir.clicked.connect(self.show_problems)
+        self.put_dir_init()
+
+        layout = QGridLayout()
+
+        layout.addWidget(self.tbl_dir)
+        layout.addWidget(QPushButton('refresh', clicked=self.put_dir_init))
+        self.setLayout(layout)
+
+    def put_dir_init(self):
+        data_base = DataBase()
+        not_put = ['img_ans already', 'problems']
+
+        self.tbl_dir.put_items_to_tbl(data_base.info, not_put)
+
+    def show_problems(self):
+        txt_dir = self.tbl_dir.get_item_txt_from_tbl()
+        data_base = DataBase()
+        # self.tbl_dir.put_items_to_tbl(data_base.info[txt_dir])
+
+        self.win_tbl_problems = WindowTableProblemsWithMove()
+
+        self.win_tbl_problems.setGeometry(self.geometry().x() + self.width() + 10, self.geometry().y(), 300, 800)
+        # self.win_tbl_problems.put_problems(data_base.info[txt_dir])
+        self.win_tbl_problems.setWindowTitle('problems')
+        self.win_tbl_problems.put_problems_and_answers(data_base.info[txt_dir])
+        self.win_tbl_problems.move(self.geometry().x() + self.width() + 10, self.geometry().y())
+        self.win_tbl_problems.show()
+
+
+class WindowWithTblProblems(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.set_up_ui()
+
+    def set_up_ui(self):
+        font_yahei = QFont("Microsoft YaHei")
+        self.setFont(font_yahei)
+        self.tbl_problems = TblToListItems()
+
+        self.tbl_problems.clicked.connect(self.show_ans)
+
+        layout = QGridLayout()
+        layout.addWidget(self.tbl_problems)
+        self.btn_show = QPushButton('unshow ans')
+        self.btn_show.clicked.connect(self.show_or_not)
+        layout.addWidget(self.btn_show)
+
+        self.setLayout(layout)
+
+    def put_problems(self, problems):
+        self.tbl_problems.put_items_to_tbl(problems)
+
+    def show_or_not(self):
+        if self.btn_show.text() == 'unshow ans':
+            # https://zhidao.baidu.com/question/2074168509029592828.html
+            self.btn_show.setText('show ans')
+            self.tbl_problems.setColumnHidden(1, True)
+        else:
+            self.btn_show.setText('unshow ans')
+            self.tbl_problems.setColumnHidden(1, False)
+
+    def unshow_ans(self):
+        # https://bbs.csdn.net/topics/392028741?page=1
+        self.tbl_problems.setColumnHidden(1, True)
+
+    def show_ans(self):
+        self.lbl_ans = QLabel('ans:')
+        problem = self.get_problem()
+        self.put_ans_where(self.lbl_ans, problem)
+        print('ans show ')
+        self.lbl_ans.setWindowTitle('ans')
+
+        self.lbl_ans.show()
+
+    def put_ans_where(self, where: QWidget, problem: str):
+        data_base = DataBase()
+        if problem not in data_base.dict_ans:
+            self.lbl_ans.clear()
+            print('have no answer,please give an answer first')
+            return
+        ans = data_base.dict_ans[problem]
+        print('ans:')
+        print(ans)
+
+        if 'image/img_ans/' in ans:
+            print('show image ans')
+            print('path:')
+            print(ans)
+            pix = QPixmap(ans)
+            # self.lbl_ans.setPixmap(pix)
+            where.setPixmap(pix)
+        else:
+
+            # self.msg('show text ans')
+            print('show text ans')
+            # self.lbl_ans.setText(ans)
+            where.setText(ans)
+
+    def get_problem(self):
+        return self.tbl_problems.get_item_txt_from_tbl()
+
+    def put_problems_and_answers(self, problems):
+        row = 0
+        col = 0
+        self.tbl_problems.setRowCount(len(problems))
+        self.tbl_problems.setColumnCount(2)
+
+        column_name = [
+            'problem',
+            'answer',
+        ]
+        self.tbl_problems.setHorizontalHeaderLabels(column_name)
+        data_base = DataBase()
+        for problem in problems:
+            self.tbl_problems.setItem(row, 0, QTableWidgetItem(problem))
+            self.tbl_problems.setItem(row, 1, QTableWidgetItem(data_base.dict_ans[problem]))
+            row += 1
+
+
+class WindowTableProblemsWithMove(WindowWithTblProblems):
+
+    # https://blog.csdn.net/jacke121/article/details/89338898
+    # sig_move = pyqtSignal(str)
+
+    def __init__(self, parent=None):
+        super(WindowTableProblemsWithMove, self).__init__()
+
+        self.tbl_problems.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.tbl_problems.customContextMenuRequested.connect(self.custom_right_menu)  # menu 是什么样子的
+
+    # https://blog.csdn.net/MAOZEXIJR/article/details/83111344
+    def custom_right_menu(self, pos):
+        menu = QMenu()
+        data_base = DataBase()
+        child_menu = QMenu('move to')
+
+        # addMenu()：在菜单栏上添加一个新的QMenu对象
+        # https://www.dazhuanlan.com/2020/03/13/5e6ac5e82cf72/
+        # opt_phsics = child_menu.addAction('physics')
+        # opt_eng = child_menu.addAction('english')
+        opt_new_dir = child_menu.addAction('new dir')
+
+        if not data_base.info:
+            print('no info')
+            return
+        for dir in data_base.info:
+            if dir == 'img_ans already': continue
+            if dir == 'dict_ans': continue
+            if dir == 'problems': continue
+            child_menu.addAction(dir)
+        menu.addMenu(child_menu)
+
+        action = menu.exec_(self.tbl_problems.mapToGlobal(pos))  # 选择的
+        if action == opt_new_dir:
+            self.new_dir()
+        for act in child_menu.actions():
+            if act == opt_new_dir: continue  # 循环到的act
+            if action == act:
+                # self.sig_move.emit(act.text())
+                problem = self.get_problem()
+                path = act.text()
+                dic_ans_path = data_base.info[path]
+                dic_ans_path[problem] = data_base.dict_ans[problem]
+
+                return
+        print(pos)
+
+    def new_dir(self):
+        data_base = DataBase()
+
+        # https://blog.csdn.net/rosefun96/article/details/79471674
+        path, ok = QInputDialog.getText(self, "what is the new dir", "new dir:", QLineEdit.Normal)
+        path = path.strip()
+        if path == '':
+            print('empty can not be a new dir')
+            return
+        data_base.info[path] = {}
+        dic_ans_path = data_base.info[path]
+        print('dic_ans_path:')
+        print(dic_ans_path)
+        problem = self.get_problem()
+        dic_ans_path[problem] = data_base.dict_ans[problem]
+
+
+class TblToListItems(QTableWidget):
+    def __init__(self):
+        super().__init__()
+
+    def put_items_to_tbl(self, items, not_put: list = None):
+        row = 0
+        col = 0
+        self.setRowCount(len(items))
+        self.setColumnCount(1)
+        for item in items:
+            if not_put and (item in not_put):
+                continue
+            else:
+                self.setItem(row, col, QTableWidgetItem(item))
+
+                row += 1
+
+    def get_item_txt_from_tbl(self):
+        row_index = self.currentIndex().row()  # 获取当前行 index
+        if self.item(row_index, 0):
+            item = self.item(row_index, 0).text()  # item(行,列), 获取当前行
+            print("item:")
+            print(item)
+
+            return item
+
+
+# main form
+class Form(QWidget):
 
     def __init__(self, parent=None):
         super(Form, self).__init__(parent)
         font_yahei = QFont("Microsoft YaHei")
         self.setFont(font_yahei)
-        self.parent = parent
-        self.cnt_ans_img = 0
-        self.dict_ans = None
-
-        # name items
 
         self.lbl_msg = QLabel('messages here')
         lbl_input = QLabel("输入问题")
@@ -55,43 +311,29 @@ class Form(QWidget):
 
         btn_upgrade_tbl = QPushButton('upgrade table')
 
-        self.window_tbl_problems=WindowListProblems(parent)
+        # self.window_tbl_problems=WindowListProblems(parent)
         ####
-        self.window_tbl_problems.dialogSignel.connect(self.ans_to_problem)
-# https://www.cnblogs.com/HE-helloword/articles/12347053.html
-#         https://blog.csdn.net/caomin1hao/article/details/80388760
-        self.window_tbl_problems.setGeometry(self.width()+700,self.depth()+100,300,1000)
-# setGeometry (9,9, 50, 25) 从屏幕上(9,9)位置开始(即为最左上角的点),显示一个50*25的界面(宽50,高25
 
-        # self.tbl_test = QTableWidget()
-        # self.tbl_test.setRowCount(2)
-        # self.tbl_test.setColumnCount(3)
-        # self.test_put_picture() #table 不能放图片
-
-        def problem_list_in_table():
-            print('list the problems in table')
-            row = 0
-            col = 0
-            for problem in self.problems:
-                print("problem:")
-                print(problem)
-                self.window_tbl_problems.tbl_problems.setItem(row, col, QTableWidgetItem(problem))
-                row += 1
-            print('load done')
-
-        # def init_list_problems():
-        #     for problem in self.dict_ans:
-        #         if not problem in self.problems:
-        #             self.problems.append(problem)
-        # init_list_problems()
         self.read_txt()
-        problem_list_in_table()
 
+        # self.win_tbl_problems=WindowWithTblProblems()
+        self.dir = Direction()
+
+        # self.dir.move(self.win_main.geometry().x() + self.win_main.width() + 10, self.win_main.geometry().y())
+        # https://blog.csdn.net/wowocpp/article/details/105221265
+        # self.dir.geometry(self.width()+800,self.height(),200,1000)
+        # https://blog.csdn.net/caomin1hao/article/details/80388760
+        # https://www.cnblogs.com/archisama/p/5444032.html
+        # w.move(300, 300)
+
+        # move()方法移动widget组件到一个位置，这个位置是屏幕上x=300,y=300的坐标。
+
+        # setGeometry (9,9, 50, 25) 从屏幕上(9,9)位置开始(即为最左上角的点),显示一个50*25的界面(宽50,高25)
         def set_layput():
             # 设置栅格布局，并添加部件到相应的位置
             layout = QGridLayout()
 
-            layout.addWidget(self.lbl_msg,0,0)
+            layout.addWidget(self.lbl_msg, 0, 0)
             layout.addWidget(self.lbl_ans, 1, 0)
             layout.addWidget(lbl_input, 2, 0)
             layout.addWidget(lbl_input_ans, 2, 1)
@@ -106,8 +348,9 @@ class Form(QWidget):
 
             layout.addWidget(btn_upgrade_tbl)
             layout.addWidget(self.lbl_msg)
-            layout.addWidget(QPushButton('show list',self,clicked=self.show_list))
+            layout.addWidget(QPushButton('dir', clicked=self.dir_show))
 
+            # layout.addWidget(self.window_tbl_problems.tbl_problems)
             # 设置主窗口的布局，自定义槽函数，设置标题
             self.setLayout(layout)
 
@@ -126,30 +369,79 @@ class Form(QWidget):
 
         self.setWindowTitle("Learning")
 
-    # https://zhuanlan.zhihu.com/p/32134728
-    def show_list(self):
-        self.window_tbl_problems.show()
-        self.window_tbl_problems.setFocus()
-    def test_put_picture(self):
-        pix = QPixmap('image/img_ans/1.jpg')
+    # https://blog.csdn.net/weixin_45961774/article/details/106008803
 
-        self.put_sth_at_table(pix, self.tbl_test)
+    def ans_belongs_to(self, where: str):
+        problem = self.window_tbl_problems.get_problem()  # 从tbl获得问题
+        data_base = DataBase()
+        if where not in data_base.info:
+            self.msg('not have this direction, now create')
+            data_base.info[where] = {}
 
+        dic_where = data_base.info[where]
+        dic_where[problem] = data_base.dict_ans[problem]
+
+    def dir_show(self):
+        # https://blog.csdn.net/dengnihuilaiwpl/article/details/90321249
+        #         self.dir.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+        #         self.dir.setFocus()
+        # https://blog.csdn.net/Victor_zero/article/details/81268465?utm_source=blogxgwz9
+        self.dir.raise_()
+
+        self.dir.show()
+
+    def read_txt(self):
+        self.msg('loading..')
+        if not os.path.exists('dict_ans.txt'):
+            self.msg('not exists,now create')
+
+            init_txt()
+        file = open('dict_ans.txt', 'r')
+        data = file.read()
+        if not data:
+            self.msg('dict_ans.txt 文件里什么都没有,现在要初始化这个文件')
+            file.close()
+            init_txt()
+
+            self.msg('init done')
+            file = open('dict_ans.txt', 'r')
+            data = file.read()
+        import ast
+
+        dic = ast.literal_eval(data)
+        data_base = DataBase()
+
+        data_base.info = dic
+
+        data_base.dict_ans = dic['dict_ans']
+        cnt_ans_img = dic['img_ans already']
+        data_base.cnt_ans_img = cnt_ans_img
+
+        if 'problems' not in dic:
+
+            self.msg('have no problems, please input')
+        else:
+
+            data_base.problems = dic['problems']
+            print('problems:')
+            print(data_base.problems)
+
+        file.close()
+        print('load done')
+        self.lbl_msg.setText('load done')
 
     def put_sth_at_table(self, sth, table: QTableWidget):
         table.setItem(0, 0, item=QTableWidgetItem(sth))
 
     def put_ans_where(self, where: QWidget, problem: str):
-
-        if not problem in self.dict_ans:
+        data_base = DataBase()
+        if problem not in data_base.dict_ans:
             self.lbl_ans.clear()
             self.msg('have no answer,please give an answer first')
             return
-        ans = self.dict_ans[problem]
+        ans = data_base.dict_ans[problem]
         print('ans:')
         print(ans)
-        print('not ans:')
-        print(not ans)
 
         if 'image/img_ans/' in ans:
             print('show image ans')
@@ -168,7 +460,10 @@ class Form(QWidget):
         print('list the problems into table')
         row = 0
         col = 0
-        for problem in self.problems:
+        data_base = DataBase()
+        self.window_tbl_problems.tbl_problems.setRowCount(len(data_base.dict_ans) + 1)
+
+        for problem in data_base.dict_ans:
             print("problem:")
             print(problem)
             self.window_tbl_problems.tbl_problems.setItem(row, col, QTableWidgetItem(problem))
@@ -182,76 +477,29 @@ class Form(QWidget):
         print(msg)
         self.lbl_msg.setText(msg)
 
-    def read_txt(self):
-        print('loading...')
-        self.lbl_msg.setText('loading...')
-        file = open('dict_ans.txt', 'r')
-        data = file.read()
-        if not data:
-            self.msg('dict_ans.txt 文件里什么都没有,现在要初始化这个文件')
-            file.close()
-            init_txt()
-
-            self.msg('init done')
-            file = open('dict_ans.txt', 'r')
-            data = file.read()
-        import ast
-
-        dic = ast.literal_eval(data)
-        self.dict_ans = dic['dict_ans']
-
-        cnt_ans_img = dic['img_ans already']
-        self.cnt_ans_img = cnt_ans_img
-        if not 'problems' in dic:
-
-            self.msg('have no problems, please input')
-        else:
-            self.problems = dic['problems']
-            print('problems:')
-            print(self.problems)
-
-        file.close()
-        print('load done')
-        self.lbl_msg.setText('load done')
-
-    def show_img(self):
-        pix = QPixmap("image/img_ans/2.jpg")
-        self.imageLabel.setPixmap(pix)
-
-    def save_img(self):
-        print('save img')
-        clipboard = QApplication.clipboard()
-        img = clipboard.pixmap()
-        path = 'image/2.jpg'
-        img.save(path)
-        print('save at {}'.format(path))
-
     def input_ans_txt(self):
         # https://www.cnblogs.com/ansang/p/7895075.html
-        problem = self.txt_input.toPlainText()
-        if not problem in self.problems:
-            self.problems.append(problem)
-        if problem in self.dict_ans:
+        problem = self.txt_input.toPlainText().strip()
+        data_base = DataBase()
+        if problem in data_base.dict_ans:
             self.msg('already have this problem')
             return
-        ans = self.txt_input_ans.toPlainText()
+        ans = self.txt_input_ans.toPlainText().strip()
         if ans == '':
             self.msg('没有答案，请输入问题再点击输入')
             return
         print("ans:")
         print(ans)
-        self.dict_ans[problem] = ans
+        data_base.dict_ans[problem] = ans
 
         self.msg('ans load done')
 
     def input_ans_img(self):
 
         self.msg('input a image ans')
-        problem = self.txt_input.toPlainText()
-        if not problem in self.problems:
-            self.problems.append(problem)
-
-        if problem in self.dict_ans:
+        problem = self.txt_input.toPlainText().strip()
+        data_base = DataBase()
+        if problem in data_base.dict_ans:
             self.msg('already have this problem')
             return
         clipboard = QApplication.clipboard()
@@ -260,17 +508,19 @@ class Form(QWidget):
         if not img_ans:
             self.msg('没有答案，请输入问题再点击输入')
             return
-        path = 'image/img_ans/{}.jpg'.format(self.cnt_ans_img)
+        path = 'image/img_ans/{}.jpg'.format(data_base.cnt_ans_img)
         img_ans.save(path)
-        self.dict_ans[problem] = path
-        self.cnt_ans_img += 1
+        data_base.dict_ans[problem] = path
+        data_base.cnt_ans_img += 1
+        print('data_base.cnt_ans_img:')
+        print(data_base.cnt_ans_img)
         # self.imageLabel.setPixmap(self.dict_ans[problem])
 
         self.msg('ans load done')
 
     def show_ans(self):
         # _translate = QtCore.QCoreApplication.translate
-        problem = self.txt_input.toPlainText()
+        problem = self.txt_input.toPlainText().strip()
         self.ans_to_problem(problem)
 
     def save(self):
@@ -278,9 +528,11 @@ class Form(QWidget):
         self.msg('saving..')
         path = 'dict_ans.txt'
         file = open(path, 'w')
-        dic = {'img_ans already': self.cnt_ans_img, 'dict_ans': self.dict_ans, 'problems': self.problems}
+        data_base = DataBase()
+        # dic = {'img_ans already': data_base.cnt_ans_img, 'dict_ans': data_base.dict_ans, 'problems': data_base.problems}
 
-        file.write(str(dic))
+        data_base.info['img_ans already'] = data_base.cnt_ans_img
+        file.write(str(data_base.info))
         file.close()
 
         self.msg('save done')
@@ -299,7 +551,7 @@ class Form(QWidget):
         print('messagebox')
         # https://www.cnblogs.com/cxys85/p/10754309.html
         # QMessageBox.addAction('text',action=self.modify_text)
-        self.win_choose = Window(parent=self.parent)
+        self.win_choose = Window()  # parent=self.parent
         self.win_choose.resize(500, 200)
         self.win_choose.setWindowTitle('choose type of answer')
         # https://blog.csdn.net/paul200345/article/details/100826879
@@ -307,51 +559,50 @@ class Form(QWidget):
         print('win show:')
         self.win_choose.show()
 
-    def modify_text(self):
-        problem = self.txt_input.toPlainText()
-        ans = self.txt_input_ans.toPlainText()
-
     def change_param(self, choice: str):
         print('change param')
         print('signal:')
         print("choice: ")
         print(choice)
-        problem = self.txt_input.toPlainText()
+        problem = self.txt_input.toPlainText().strip()
+        data_base = DataBase()
         if not problem:
             print('没有问题，请输入问题再点击输入')
             self.lbl_msg.setText('没有问题，请输入问题再点击输入')
             return
         if choice == 'text':
-            ans = self.txt_input_ans.toPlainText()
+            ans = self.txt_input_ans.toPlainText().strip()
             if ans == '':
                 print('没有答案，请输入答案再点击输入')
                 self.lbl_msg.setText('没有问题，请输入问题再点击输入')
                 return
             print('ans:')
             print(ans)
-            self.dict_ans[problem] = ans
+            data_base.dict_ans[problem] = ans
         else:
             clipboard = QApplication.clipboard()
             img_ans = clipboard.pixmap()
+
             if not img_ans:
                 print('没有答案，请输入答案再点击输入')
                 self.lbl_msg.setText('没有问题，请输入问题再点击输入')
                 return
 
-            if not problem in self.dict_ans:
+            if not problem in data_base.dict_ans:
                 print('原来没有相应的答案，现在是添加新的答案')
                 self.lbl_msg.setText('原来没有相应的答案，现在是添加新的答案')
-                path = 'image/img_ans/{}.jpg'.format(self.cnt_ans_img)
+                path = 'image/img_ans/{}.jpg'.format(data_base.cnt_ans_img)
                 img_ans.save(path)
-                self.dict_ans[problem] = path
-                self.cnt_ans_img += 1
+                data_base.dict_ans[problem] = path
+                data_base.cnt_ans_img += 1
             else:
-                path_original = self.dict_ans[problem]
+                path_original = data_base.dict_ans[problem]
                 print('修改答案')
                 self.lbl_msg.setText('修改答案')
                 img_ans.save(path_original)
 
 
+# 选择修改text 还是 image
 class Window(QWidget):
     dialogSignel = pyqtSignal(str)
 
@@ -389,32 +640,18 @@ class Window(QWidget):
     img = 1
     choose = 0
 
-class WindowListProblems(QWidget):
-    dialogSignel = pyqtSignal(str)
 
-    def __init__(self, parent=None):
-        super(WindowListProblems, self).__init__(parent)
-        self.setWindowTitle('list problems')
-        self.tbl_problems=QTableWidget(clicked=self.send_problem)
-        self.tbl_problems.setColumnCount(1)
-        self.tbl_problems.setRowCount(10)
-        self.resize(300,1000)
-        layout=QGridLayout()
-        layout.addWidget(self.tbl_problems)
-        self.setLayout(layout)
+class WholeControler():
 
-    def get_problem(self):
-        row_index = self.tbl_problems.currentIndex().row()  # 获取当前行 index
-        if self.tbl_problems.item(row_index, 0):
-            problem = self.tbl_problems.item(row_index, 0).text()  # item(行,列), 获取当前行
-            print("problem:")
-            print(problem)
-            # self.ans_to_problem(problem)
-            return problem
+    def start(self):
+        app = QApplication(sys.argv)
+        self.win_main = Form()
 
-    def send_problem(self):
-        problem=self.get_problem()
-        self.dialogSignel.emit(problem)
+        self.win_main.show()
+
+        sys.exit(app.exec_())
+
+
 def init_txt():
     dic = {'img_ans already': 0}
     ans = {'1+1': '2'}
@@ -427,20 +664,5 @@ def init_txt():
     file.close()
 
 
-def look_dic():
-    dic = {'img_ans already': 0}
-    ans = {'1+1': '2'}
-    problems = ['1+1']
-    dic['dict_ans'] = ans
-    dic['problems'] = problems
-    print(str(dic))
-
-
-def build():
-    app = QApplication(sys.argv)
-    form = Form()
-    form.show()
-    sys.exit(app.exec_())
-
-
-build()
+whole_controler = WholeControler()
+whole_controler.start()
