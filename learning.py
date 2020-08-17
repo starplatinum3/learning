@@ -93,11 +93,17 @@ class Direction(QWidget):
 
         self.win_tbl_problems = WindowTableProblemsWithMove()
 
-        self.win_tbl_problems.setGeometry(self.geometry().x() + self.width() + 10, self.geometry().y(), 300, 800)
-        # self.win_tbl_problems.put_problems(data_base.info[txt_dir])
-        self.win_tbl_problems.setWindowTitle('problems')
+        self.win_tbl_problems.setGeometry(
+            self.geometry().x() + self.width() + 10, self.geometry().y(), 300, 800)
+
+        self.win_tbl_problems.setWindowTitle(txt_dir)
+        if txt_dir == None:
+            print('nothing to show')
+            return
+
         self.win_tbl_problems.put_problems_and_answers(data_base.info[txt_dir])
-        self.win_tbl_problems.move(self.geometry().x() + self.width() + 10, self.geometry().y())
+        self.win_tbl_problems.move(
+            self.geometry().x() + self.width() + 10, self.geometry().y())
         self.win_tbl_problems.show()
 
 
@@ -117,6 +123,8 @@ class WindowWithTblProblems(QWidget):
         layout.addWidget(self.tbl_problems)
         self.btn_show = QPushButton('unshow ans')
         self.btn_show.clicked.connect(self.show_or_not)
+        self.lbl_ans = QLabel('ans')
+        layout.addWidget(self.lbl_ans)
         layout.addWidget(self.btn_show)
 
         self.setLayout(layout)
@@ -129,6 +137,8 @@ class WindowWithTblProblems(QWidget):
             # https://zhidao.baidu.com/question/2074168509029592828.html
             self.btn_show.setText('show ans')
             self.tbl_problems.setColumnHidden(1, True)
+
+            self.lbl_ans.clear()
         else:
             self.btn_show.setText('unshow ans')
             self.tbl_problems.setColumnHidden(1, False)
@@ -138,13 +148,14 @@ class WindowWithTblProblems(QWidget):
         self.tbl_problems.setColumnHidden(1, True)
 
     def show_ans(self):
-        self.lbl_ans = QLabel('ans:')
+
+        # self.lbl_ans = QLabel('ans:')
         problem = self.get_problem()
         self.put_ans_where(self.lbl_ans, problem)
         print('ans show ')
-        self.lbl_ans.setWindowTitle('ans')
+        # self.lbl_ans.setWindowTitle('ans')
 
-        self.lbl_ans.show()
+        # self.lbl_ans.show()
 
     def put_ans_where(self, where: QWidget, problem: str):
         data_base = DataBase()
@@ -187,7 +198,8 @@ class WindowWithTblProblems(QWidget):
         data_base = DataBase()
         for problem in problems:
             self.tbl_problems.setItem(row, 0, QTableWidgetItem(problem))
-            self.tbl_problems.setItem(row, 1, QTableWidgetItem(data_base.dict_ans[problem]))
+            self.tbl_problems.setItem(
+                row, 1, QTableWidgetItem(data_base.dict_ans[problem]))
             row += 1
 
 
@@ -200,7 +212,8 @@ class WindowTableProblemsWithMove(WindowWithTblProblems):
         super(WindowTableProblemsWithMove, self).__init__()
 
         self.tbl_problems.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.tbl_problems.customContextMenuRequested.connect(self.custom_right_menu)  # menu 是什么样子的
+        self.tbl_problems.customContextMenuRequested.connect(
+            self.custom_right_menu)  # menu 是什么样子的
 
     # https://blog.csdn.net/MAOZEXIJR/article/details/83111344
     def custom_right_menu(self, pos):
@@ -213,37 +226,75 @@ class WindowTableProblemsWithMove(WindowWithTblProblems):
         # opt_phsics = child_menu.addAction('physics')
         # opt_eng = child_menu.addAction('english')
         opt_new_dir = child_menu.addAction('new dir')
-
+        opt_del_from_fir = child_menu.addAction('del from this dir')
         if not data_base.info:
             print('no info')
             return
         for dir in data_base.info:
-            if dir == 'img_ans already': continue
-            if dir == 'dict_ans': continue
-            if dir == 'problems': continue
+            if dir == 'img_ans already':
+                continue
+            if dir == 'dict_ans':
+                continue
+            if dir == 'problems':
+                continue
+
             child_menu.addAction(dir)
         menu.addMenu(child_menu)
 
         action = menu.exec_(self.tbl_problems.mapToGlobal(pos))  # 选择的
+
         if action == opt_new_dir:
             self.new_dir()
+
+            return
+
+        if action == opt_del_from_fir:
+            self.del_from_dir(data_base, action)
+
+            return
+
         for act in child_menu.actions():
-            if act == opt_new_dir: continue  # 循环到的act
+
+            if act == opt_new_dir or act == opt_del_from_fir:
+                continue  # 循环到的act
+
             if action == act:
                 # self.sig_move.emit(act.text())
                 problem = self.get_problem()
+                if problem == None:
+                    print('select nothing')
+                    return
+                print("problem:")
+                print(problem)
                 path = act.text()
                 dic_ans_path = data_base.info[path]
                 dic_ans_path[problem] = data_base.dict_ans[problem]
-
+                # dic_ans 存了所有的答案
                 return
         print(pos)
+
+    def del_from_dir(self, data_base, act):
+        problem = self.get_problem()
+        item = self.tbl_problems.get_item()
+        if problem == None:
+            print('select nothing')
+            return
+        # path = act.text()
+        path = self.windowTitle()
+        print("path:", path)
+        dic_ans_path = data_base.info[path]
+        dic_ans_path.pop(problem)
+        # self.tbl_problems.itemSelectionChanged()
+        # print("item.row:",item.row)
+        # self.tbl_problems.removeRow(item.row)
+        self.tbl_problems._deleteRows()
 
     def new_dir(self):
         data_base = DataBase()
 
         # https://blog.csdn.net/rosefun96/article/details/79471674
-        path, ok = QInputDialog.getText(self, "what is the new dir", "new dir:", QLineEdit.Normal)
+        path, ok = QInputDialog.getText(
+            self, "what is the new dir", "new dir:", QLineEdit.Normal)
         path = path.strip()
         if path == '':
             print('empty can not be a new dir')
@@ -274,11 +325,50 @@ class TblToListItems(QTableWidget):
                 row += 1
 
     def get_item_txt_from_tbl(self):
+        item = self.get_item()
+        if not item:
+            return None
+        return item.text()
+
+    def _deleteRows(self):
+        # https://blog.csdn.net/weixin_42670810/article/details/104730544
+        """
+        删除所选择行
+        :return:
+        """
+        print('删除所选择行')
+        s_items = self.selectedItems()  # 获取当前所有选择的items
+        if s_items:
+            selected_rows = []  # 求出所选择的行数
+            for i in s_items:
+                row = i.row()
+                if row not in selected_rows:
+                    selected_rows.append(row)
+            for r in range(len(sorted(selected_rows))):
+                self.removeRow(selected_rows[r]-r)  # 删除行
+
+#         print(len(self.selectedItems()))
+# # https://zhuanlan.zhihu.com/p/122462294
+#         if len(self.selectedItems())==0:
+#             print('select no item')
+#             return None
+#         row_index = self.currentIndex().row()  # 获取当前行 index
+#         if self.item(row_index, 0):
+#             item = self.item(row_index, 0).text()  # item(行,列), 获取当前行
+#             print("item:")
+#             print(item)
+
+#             return item
+
+    def get_item(self):
+
+        # https://zhuanlan.zhihu.com/p/122462294
+        if len(self.selectedItems()) == 0:
+            print('select no item')
+            return None
         row_index = self.currentIndex().row()  # 获取当前行 index
         if self.item(row_index, 0):
-            item = self.item(row_index, 0).text()  # item(行,列), 获取当前行
-            print("item:")
-            print(item)
+            item = self.item(row_index, 0)  # item(行,列), 获取当前行
 
             return item
 
@@ -291,7 +381,7 @@ class Form(QWidget):
         font_yahei = QFont("Microsoft YaHei")
         self.setFont(font_yahei)
 
-        self.lbl_msg = QLabel('messages here')
+       
         lbl_input = QLabel("输入问题")
         lbl_input.setFont(QFont("Microsoft YaHei"))
         # https://blog.csdn.net/rosefun96/article/details/79477974
@@ -310,6 +400,7 @@ class Form(QWidget):
         btn_show_ans = QPushButton("show ans")
 
         btn_upgrade_tbl = QPushButton('upgrade table')
+        self.txt_msg = QTextEdit()
 
         # self.window_tbl_problems=WindowListProblems(parent)
         ####
@@ -329,11 +420,11 @@ class Form(QWidget):
         # move()方法移动widget组件到一个位置，这个位置是屏幕上x=300,y=300的坐标。
 
         # setGeometry (9,9, 50, 25) 从屏幕上(9,9)位置开始(即为最左上角的点),显示一个50*25的界面(宽50,高25)
-        def set_layput():
+        def set_layout():
             # 设置栅格布局，并添加部件到相应的位置
             layout = QGridLayout()
 
-            layout.addWidget(self.lbl_msg, 0, 0)
+            
             layout.addWidget(self.lbl_ans, 1, 0)
             layout.addWidget(lbl_input, 2, 0)
             layout.addWidget(lbl_input_ans, 2, 1)
@@ -347,14 +438,14 @@ class Form(QWidget):
             layout.addWidget(btn_modify_ans, 6, 1)
 
             layout.addWidget(btn_upgrade_tbl)
-            layout.addWidget(self.lbl_msg)
+           
             layout.addWidget(QPushButton('dir', clicked=self.dir_show))
-
+            layout.addWidget(self.txt_msg)
             # layout.addWidget(self.window_tbl_problems.tbl_problems)
             # 设置主窗口的布局，自定义槽函数，设置标题
             self.setLayout(layout)
 
-        set_layput()
+        set_layout()
 
         # connect
         btn_input_ans.clicked.connect(self.input_ans_txt)
@@ -423,12 +514,10 @@ class Form(QWidget):
         else:
 
             data_base.problems = dic['problems']
-            print('problems:')
-            print(data_base.problems)
 
         file.close()
-        print('load done')
-        self.lbl_msg.setText('load done')
+
+        self.msg('load done')
 
     def put_sth_at_table(self, sth, table: QTableWidget):
         table.setItem(0, 0, item=QTableWidgetItem(sth))
@@ -440,13 +529,9 @@ class Form(QWidget):
             self.msg('have no answer,please give an answer first')
             return
         ans = data_base.dict_ans[problem]
-        print('ans:')
-        print(ans)
 
         if 'image/img_ans/' in ans:
-            print('show image ans')
-            print('path:')
-            print(ans)
+
             pix = QPixmap(ans)
             # self.lbl_ans.setPixmap(pix)
             where.setPixmap(pix)
@@ -461,12 +546,13 @@ class Form(QWidget):
         row = 0
         col = 0
         data_base = DataBase()
-        self.window_tbl_problems.tbl_problems.setRowCount(len(data_base.dict_ans) + 1)
+        self.window_tbl_problems.tbl_problems.setRowCount(
+            len(data_base.dict_ans) + 1)
 
         for problem in data_base.dict_ans:
-            print("problem:")
-            print(problem)
-            self.window_tbl_problems.tbl_problems.setItem(row, col, QTableWidgetItem(problem))
+
+            self.window_tbl_problems.tbl_problems.setItem(
+                row, col, QTableWidgetItem(problem))
             row += 1
         print('load done')
 
@@ -475,7 +561,8 @@ class Form(QWidget):
 
     def msg(self, msg: str):
         print(msg)
-        self.lbl_msg.setText(msg)
+        
+        self.txt_msg.append(msg)
 
     def input_ans_txt(self):
         # https://www.cnblogs.com/ansang/p/7895075.html
@@ -488,8 +575,7 @@ class Form(QWidget):
         if ans == '':
             self.msg('没有答案，请输入问题再点击输入')
             return
-        print("ans:")
-        print(ans)
+
         data_base.dict_ans[problem] = ans
 
         self.msg('ans load done')
@@ -526,7 +612,7 @@ class Form(QWidget):
     def save(self):
 
         self.msg('saving..')
-        path = 'dict_ans.txt'
+        path = './dict_ans.txt'
         file = open(path, 'w')
         data_base = DataBase()
         # dic = {'img_ans already': data_base.cnt_ans_img, 'dict_ans': data_base.dict_ans, 'problems': data_base.problems}
@@ -538,13 +624,13 @@ class Form(QWidget):
         self.msg('save done')
 
     def closeEvent(self, event):
-        print('close')
-        self.lbl_msg.setText('close')
+        
+        self.msg('close')
         self.save()
 
     def unshow_ans(self):
-        print('unshow ans')
-        self.lbl_msg.setText('unshow ans')
+      
+        self.msg('unshow ans')
         self.lbl_ans.clear()
 
     def modify_ans(self):
@@ -567,14 +653,14 @@ class Form(QWidget):
         problem = self.txt_input.toPlainText().strip()
         data_base = DataBase()
         if not problem:
-            print('没有问题，请输入问题再点击输入')
-            self.lbl_msg.setText('没有问题，请输入问题再点击输入')
+     
+            self.msg('没有问题，请输入问题再点击输入')
             return
         if choice == 'text':
             ans = self.txt_input_ans.toPlainText().strip()
             if ans == '':
-                print('没有答案，请输入答案再点击输入')
-                self.lbl_msg.setText('没有问题，请输入问题再点击输入')
+              
+                self.msg('没有问题，请输入问题再点击输入')
                 return
             print('ans:')
             print(ans)
@@ -584,21 +670,21 @@ class Form(QWidget):
             img_ans = clipboard.pixmap()
 
             if not img_ans:
-                print('没有答案，请输入答案再点击输入')
-                self.lbl_msg.setText('没有问题，请输入问题再点击输入')
+               
+                self.msg('没有问题，请输入问题再点击输入')
                 return
 
             if not problem in data_base.dict_ans:
-                print('原来没有相应的答案，现在是添加新的答案')
-                self.lbl_msg.setText('原来没有相应的答案，现在是添加新的答案')
+               
+                self.msg('原来没有相应的答案，现在是添加新的答案')
                 path = 'image/img_ans/{}.jpg'.format(data_base.cnt_ans_img)
                 img_ans.save(path)
                 data_base.dict_ans[problem] = path
                 data_base.cnt_ans_img += 1
             else:
                 path_original = data_base.dict_ans[problem]
-                print('修改答案')
-                self.lbl_msg.setText('修改答案')
+                
+                self.msg('修改答案')
                 img_ans.save(path_original)
 
 
@@ -654,10 +740,10 @@ class WholeControler():
 
 def init_txt():
     dic = {'img_ans already': 0}
-    ans = {'1+1': '2'}
-    problems = ['1+1']
+    ans = {}
+    
     dic['dict_ans'] = ans
-    dic['problems'] = problems
+   
 
     file = open('dict_ans.txt', 'w')
     file.write(str(dic))
