@@ -380,6 +380,7 @@ class Form(QWidget):
         super(Form, self).__init__(parent)
         font_yahei = QFont("Microsoft YaHei")
         self.setFont(font_yahei)
+        # pyqt 一个按钮点击 列出当前文件夹
 
        
         lbl_input = QLabel("输入问题")
